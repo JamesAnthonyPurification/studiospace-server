@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import { env } from './config/env.js';
 import { getDb } from './config/db.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
+import authRoutes from './routes/auth.routes.js';
 
 const app = express();
 
@@ -21,6 +22,8 @@ app.get('/api/health', async (req, res) => {
   await db.command({ ping: 1 });
   res.json({ status: 'ok', database: 'connected' });
 });
+
+app.use('/api', authRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
