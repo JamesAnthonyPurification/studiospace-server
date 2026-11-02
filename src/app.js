@@ -6,6 +6,7 @@ import { getDb } from './config/db.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
 import studioRoutes from './routes/studio.routes.js';
+import bookingRoutes from './routes/booking.routes.js';
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.get('/api/health', async (req, res) => {
 
 app.use('/api', authRoutes);
 app.use('/api/studios', studioRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
