@@ -8,6 +8,8 @@ import authRoutes from './routes/auth.routes.js';
 import studioRoutes from './routes/studio.routes.js';
 import bookingRoutes from './routes/booking.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
+import wishlistRoutes from './routes/wishlist.routes.js';
+import publicRoutes from './routes/public.routes.js';
 
 const app = express();
 
@@ -30,6 +32,8 @@ app.use('/api', authRoutes);
 app.use('/api/studios', studioRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/wishlist', wishlistRoutes);
+app.use('/api', publicRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
