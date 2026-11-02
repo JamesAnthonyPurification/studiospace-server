@@ -197,7 +197,8 @@ router.get('/:id/availability', async (req, res) => {
 router.get('/:id/reviews', async (req, res) => {
   const { reviews } = await getCollections();
   const studioId = toObjectId(req.params.id, 'Studio');
-  const list = await reviews.find({ studioId }).sort({ createdAt: -1 }).limit(50).toArray();
+  // Reviewer emails stay private; names and photos are enough for display.
+  const list = await reviews.find({ studioId }).project({ userEmail: 0 }).sort({ createdAt: -1 }).limit(50).toArray();
   res.json(list);
 });
 
@@ -217,7 +218,7 @@ router.post('/:id/reviews', verifyToken, async (req, res) => {
   if (comment.length < 10 || comment.length > 600) throw new HttpError(400, 'Review must be between 10 and 600 characters.');
 
   const now = new Date();
-  await reviews.updateOne(
+  const { upsertedCount } = await reviews.updateOne(
     { studioId: studio._id, userEmail: req.user.email },
     {
       $set: { rating, comment, userName: req.user.name, userImage: req.user.image || '', updatedAt: now },
@@ -236,7 +237,7 @@ router.post('/:id/reviews', verifyToken, async (req, res) => {
   const update = { rating: Math.round(summary.average * 10) / 10, reviewCount: summary.count };
   await studios.updateOne({ _id: studio._id }, { $set: update });
 
-  res.status(201).json({ success: true, ...update });
+  res.status(upsertedCount ? 201 : 200).json({ success: true, updated: !upsertedCount, ...update });
 });
 
 export default router;
