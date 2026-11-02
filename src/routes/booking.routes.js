@@ -140,4 +140,49 @@ router.patch('/:id/cancel', async (req, res) => {
   res.json({ success: true, booking: updated });
 });
 
+/** GET /api/bookings/requests?status= — bookings made on the logged-in host's studios. */
+router.get('/requests', async (req, res) => {
+  const { bookings } = await getCollections();
+  const filter = { hostEmail: req.user.email };
+  if (STATUSES.includes(req.query.status)) filter.status = req.query.status;
+  res.json(await bookings.find(filter).sort({ createdAt: -1 }).toArray());
+});
+
+// What a host may move a booking to from each state.
+const HOST_TRANSITIONS = {
+  Pending: ['Confirmed', 'Cancelled'],
+  Confirmed: ['Completed', 'Cancelled'],
+};
+
+/** PATCH /api/bookings/:id/status — hosts confirm, decline or complete a booking. */
+router.patch('/:id/status', async (req, res) => {
+  const { bookings } = await getCollections();
+  const { status } = req.body ?? {};
+  const booking = await bookings.findOne({ _id: toObjectId(req.params.id, 'Booking') });
+  if (!booking) throw new HttpError(404, 'Booking not found.');
+  if (booking.hostEmail !== req.user.email) throw new HttpError(403, 'Forbidden: only the studio host can update this booking.');
+
+  const allowed = HOST_TRANSITIONS[booking.status] ?? [];
+  if (!allowed.includes(status)) {
+    throw new HttpError(400, `A ${booking.status} booking can't be marked as ${status || 'that status'}.`);
+  }
+
+  if (status === 'Confirmed') await assertNoConfirmedOverlap(bookings, booking, booking._id);
+
+  const updated = await bookings.findOneAndUpdate(
+    { _id: booking._id, status: booking.status },
+    {
+      $set: {
+        status,
+        updatedAt: new Date(),
+        ...(status === 'Cancelled' && { cancelReason: 'Declined by host' }),
+      },
+    },
+    { returnDocument: 'after' },
+  );
+  if (!updated) throw new HttpError(409, 'This booking was updated by someone else. Refresh and try again.');
+
+  res.json({ success: true, booking: updated });
+});
+
 export default router;
