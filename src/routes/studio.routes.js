@@ -193,4 +193,50 @@ router.get('/:id/availability', async (req, res) => {
   res.json({ date, slots });
 });
 
+/** GET /api/studios/:id/reviews — newest first. */
+router.get('/:id/reviews', async (req, res) => {
+  const { reviews } = await getCollections();
+  const studioId = toObjectId(req.params.id, 'Studio');
+  const list = await reviews.find({ studioId }).sort({ createdAt: -1 }).limit(50).toArray();
+  res.json(list);
+});
+
+/**
+ * POST /api/studios/:id/reviews — add or update your review (protected).
+ * The studio's rating is recomputed with an $avg aggregation.
+ */
+router.post('/:id/reviews', verifyToken, async (req, res) => {
+  const { studios, reviews } = await getCollections();
+  const studio = await studios.findOne({ _id: toObjectId(req.params.id, 'Studio') });
+  if (!studio) throw new HttpError(404, 'Studio not found.');
+  if (studio.ownerEmail === req.user.email) throw new HttpError(400, "You can't review your own studio.");
+
+  const rating = Number(req.body?.rating);
+  const comment = String(req.body?.comment ?? '').trim();
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw new HttpError(400, 'Rating must be between 1 and 5 stars.');
+  if (comment.length < 10 || comment.length > 600) throw new HttpError(400, 'Review must be between 10 and 600 characters.');
+
+  const now = new Date();
+  await reviews.updateOne(
+    { studioId: studio._id, userEmail: req.user.email },
+    {
+      $set: { rating, comment, userName: req.user.name, userImage: req.user.image || '', updatedAt: now },
+      $setOnInsert: { createdAt: now },
+    },
+    { upsert: true },
+  );
+
+  const [summary] = await reviews
+    .aggregate([
+      { $match: { studioId: studio._id } },
+      { $group: { _id: null, average: { $avg: '$rating' }, count: { $sum: 1 } } },
+    ])
+    .toArray();
+
+  const update = { rating: Math.round(summary.average * 10) / 10, reviewCount: summary.count };
+  await studios.updateOne({ _id: studio._id }, { $set: update });
+
+  res.status(201).json({ success: true, ...update });
+});
+
 export default router;
