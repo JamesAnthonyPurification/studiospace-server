@@ -2,6 +2,7 @@
 
 REST API for **StudioSpace**, a peer-to-peer marketplace for booking creative studios by the hour. Built with **Express 5** and the **MongoDB** native driver.
 
+- 🚀 **Live API:** https://studiospace-james-api.vercel.app (health check: `/api/health`)
 - 🌐 **Client repository:** https://github.com/JamesAnthonyPurification/studiospace-client (the live site URL is listed in its README)
 
 ## Highlights
